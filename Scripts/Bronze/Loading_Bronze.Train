@@ -1,0 +1,111 @@
+
+CREATE OR ALTER PROCEDURE Bronze.Load_Bronze_Train_From_CSV AS 
+BEGIN 
+    DECLARE  @StageRows INT, @BronzeRows INT, @start_time DATETIME, @End_time DATETIME, @Batch_Start_time DATETIME , @Batch_End_time DATETIME ;
+
+    BEGIN TRY
+
+        SET @Batch_Start_time = GETDATE();
+        PRINT ' ================================================';
+        PRINT ' LOADING Bronze.Train TABLE';
+        PRINT ' ================================================';
+
+        -- Loading into Bronze.Stage_Train
+        PRINT ' --------------------------------------------';
+        PRINT 'LOADING Bronze.Stage_Train TABLE';
+        PRINT ' --------------------------------------------';
+
+        PRINT ' >> TRUNCATING TABLE : Bronze.Stage_Train ';
+        PRINT ' >> INSERTING DATA INTO TABLE: Bronze.Stage_Train';
+        SET @start_time = GETDATE();
+
+        TRUNCATE TABLE Bronze.Stage_Train;
+    
+        BULK INSERT Bronze.Stage_Train
+        FROM 'E:\Resume Projects\SQL-PowerBI\Origial dataset\Rosseman\rossmann-store-sales\train.csv'
+        WITH (
+            FIRSTROW = 2,
+            FIELDTERMINATOR = ',',
+            ROWTERMINATOR = '0x0A',
+            CODEPAGE = '65001',
+            TABLOCK
+        );
+        SET @End_time = GETDATE();
+
+        SELECT @StageRows = COUNT(*)
+        FROM Bronze.Stage_Train;
+
+        PRINT 'ROWS LOADED INTO Bronze.Stage_Train: '
+               + CAST(@StageRows AS NVARCHAR(20));
+                
+        PRINT 'LOADING DURATION: '  
+               + CAST (DATEDIFF(SECOND, @Start_time, @End_time) AS NVARCHAR)
+               + ' seconds';
+
+
+        -- Loading into Bronze.Train
+
+        PRINT ' --------------------------------------------';
+        PRINT 'LOADING Bronze.Train TABLE';
+        PRINT ' --------------------------------------------';
+
+        PRINT ' >> TRUNCATING TABLE : Bronze.Train ';
+        PRINT ' >> INSERTING DATA INTO TABLE: Bronze.Train';
+
+        SET @start_time = GETDATE();
+        TRUNCATE TABLE Bronze.Train;
+    
+        INSERT INTO Bronze.Train (
+            Store, 
+            DayofWeekNum, 
+            SalesDate, 
+            Sales,
+            Customers, 
+            IsOpen, 
+            Promo, 
+            StateHoliday, 
+            SchoolHoliday
+        )
+        SELECT
+            TRY_CAST(Store AS smallint),
+            TRY_CAST(DayofWeek AS TINYINT),
+            TRY_CAST(SalesDate AS DATE),
+            TRY_CAST(Sales AS DECIMAL(12,2)),
+            TRY_CAST(Customers AS SMALLINT),
+            TRY_CAST(IsOpen AS BIT), 
+            TRY_CAST(Promo AS BIT), 
+            REPLACE(StateHoliday, '"',''),
+            TRY_CAST(REPLACE(SchoolHoliday, '"','') AS BIT)
+
+        FROM Bronze.Stage_Train
+        SET @End_time = GETDATE();
+
+        SELECT @BronzeRows = COUNT(*)
+        FROM Bronze.Train;
+        PRINT 'ROWS LOADED INTO Bronze.Train: ' + CAST(@BronzeRows AS NVARCHAR(20));
+
+        PRINT 'LOADING DURATION: '
+               + CAST (DATEDIFF(SECOND, @Start_time, @End_time) AS NVARCHAR)
+               + ' seconds';
+
+        SET @Batch_End_time = GETDATE();
+        PRINT ' --------------------------------------------';
+        PRINT 'LOADING Bronze.Train TABLE IS FINISHED';
+        PRINT 'LOADING DURATION: ' 
+               + CAST (DATEDIFF(SECOND, @Batch_Start_time, @Batch_End_time) AS NVARCHAR)
+               + ' seconds';
+        PRINT ' --------------------------------------------';
+
+
+    END TRY
+    BEGIN CATCH
+        PRINT ' ================================================';
+        PRINT 'ERROR OCCURED DURING LOADING';
+        PRINT 'ERROR MESSAGE: ' + ERROR_MESSAGE() ;
+        PRINT 'ERROR NUMBER: ' + CAST(ERROR_NUMBER() AS NVARCHAR)
+        PRINT 'ERROR LINE: ' + CAST(ERROR_LINE() AS NVARCHAR);
+        PRINT ' ================================================';
+
+    END CATCH
+END
+
