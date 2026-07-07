@@ -35,16 +35,27 @@ Contains transactional sales data:
 The pipeline is implemented using **SQL Server Stored Procedures** and follows a structured workflow:
 
 1. Truncate Stage tables
-2. Load raw data using `BULK INSERT`
+2. Load raw data using `BULK INSERT.`
 3. Store raw data in Stage layer (NVARCHAR format)
 4. Transform and clean data
 5. Load into Bronze layer
-6. Apply data type conversions using `TRY_CAST`
+6. Apply data type conversions using `TRY_CAST.`
 7. Normalize categorical and boolean fields
 8. Track row counts at each stage
 9. Measure execution time per process
-10. Implement error handling using `TRY...CATCH`
+10. Implement error handling using `TRY...CATCH.`
 
+
+## ETL Challenges & Solutions
+
+### Handling Quoted Values in Source Data
+
+During the ingestion process, some source CSV files contained quoted values (`"`) that affected the data import process and caused parsing issues.
+
+To ensure accurate ingestion:
+- The raw files were first loaded into staging tables.
+- Data was reviewed and handled before being inserted into the Bronze layer.
+- The staging layer provided better control over raw data ingestion and helped preserve data quality.
 ---
 
 ## 🚀 Key Features
