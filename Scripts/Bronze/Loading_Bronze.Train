@@ -1,3 +1,28 @@
+/*
+===============================================================================
+Data Loading Script: Load Bronze Layer Tables
+===============================================================================
+Script Purpose:
+    This script loads raw source data into the Bronze layer of the data 
+    warehouse.
+
+    The loading process follows a staged approach:
+    1. Source data is first loaded into staging tables as an intermediate layer.
+    2. Data is then inserted from staging tables into the corresponding Bronze 
+       layer tables while maintaining the source structure.
+
+    The staging layer provides a controlled ingestion area, allowing data to be 
+    reviewed and managed before being stored in the Bronze layer.
+
+    The Bronze layer acts as the raw data repository, preserving source data 
+    for traceability and supporting downstream transformation processes.
+
+    This script handles the data ingestion process required to populate Bronze 
+    layer tables.
+
+===============================================================================
+*/
+
 
 CREATE OR ALTER PROCEDURE Bronze.Load_Bronze_Train_From_CSV AS 
 BEGIN 
