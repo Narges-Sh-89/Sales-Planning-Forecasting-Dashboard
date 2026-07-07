@@ -1,12 +1,30 @@
 
--- Bronze layer contains cleaned and typed data ready for analytics.
--- Data is loaded from Stage tables using controlled casting.
+/*
+===============================================================================
+DDL Script: Create Bronze Layer Tables
+===============================================================================
+Script Purpose:
+    This script creates the required tables in the 'bronze' schema to store 
+    raw source data.
+
+    The data pipeline follows a staged ingestion approach where source data is 
+    initially prepared in staging tables before being persisted into the 
+    Bronze layer tables.
+
+    The Bronze layer preserves the original source structure and provides a 
+    reliable foundation for downstream data transformation and analytics 
+    processes.
+
+    This script drops existing Bronze tables if they already exist and 
+    recreates them with the required schema and column definitions.
+
+    Run this script to initialize or refresh the Bronze layer table structure.
+===============================================================================
+*/
 
 -- =================================
 -- CREATING 'STORE' DOMAIN
 -- =================================
-
--- Stage tables use NVARCHAR to allow schema-agnostic raw ingestion
 
 -- Creating  Bronze.Stage_Store Table
 
