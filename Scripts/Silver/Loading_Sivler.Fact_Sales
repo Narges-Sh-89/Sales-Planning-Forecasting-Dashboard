@@ -1,0 +1,104 @@
+
+/*
+===============================================================================
+Stored Procedure: Silver.Load_Fact_Sales
+===============================================================================
+Purpose:
+    This stored procedure loads the Fact_Sales table in the Silver layer.
+
+    The process extracts sales transaction data from the Bronze layer, applies
+    data quality rules and business transformations, and loads the cleaned data
+    into Silver.Fact_Sales.
+
+Transformations Applied:
+    - Standardizes StateHoliday values into business-friendly descriptions.
+    - Filters invalid sales records based on business rules:
+          * Open stores must have positive sales values.
+          * Closed stores are retained because zero sales are expected.
+
+Data Quality Rules Applied:
+    - Removes records where open stores have zero or missing sales values.
+    - Maintains closed store records for operational and forecasting analysis.
+    - Preserves the daily store-level sales grain defined by:
+          Store + SalesDate
+
+Loading Process:
+    - The existing Silver.Fact_Sales table is truncated before loading new data.
+    - Transformed records are inserted from Bronze.Train.
+    - The procedure tracks the number of loaded rows and execution duration.
+
+Error Handling:
+    - TRY/CATCH logic is implemented to capture loading errors and provide
+      detailed error information including message, number, and line.
+
+===============================================================================
+*/
+
+
+CREATE OR ALTER PROCEDURE Silver.Load_Fact_Sales AS
+BEGIN
+    BEGIN TRY
+         DECLARE @RowsLoaded INT, @Start_time DATETIME2, @End_time DATETIME2
+
+         SET @start_time = SYSDATETIME();
+
+         PRINT 'TRUNCATING TABLE : Silver.Fact_Sales';
+         TRUNCATE TABLE Silver.Fact_Sales ;
+
+         PRINT' INSERTING DATA INTO TABLE: Silver.Fact_Sales';
+
+         INSERT INTO Silver.Fact_Sales (
+	        Store, 
+            DayOfWeekNum, 
+            SalesDate, 
+            Sales,
+            Customers, 
+            IsOpen, 
+            Promo, 
+            StateHoliday, 
+            SchoolHoliday ) 
+
+
+        SELECT 
+	        Store,
+	        DayofWeekNum,
+	        SalesDate,
+	        Sales,
+	        Customers,
+	        IsOpen,
+	        Promo,
+
+	        CASE LOWER(TRIM(StateHoliday))
+                WHEN '0' THEN 'No Holiday'
+                WHEN 'a' THEN 'Public Holiday'
+                WHEN 'b' THEN 'Easter Holiday'
+                WHEN 'c' THEN 'Christmas Holiday'
+                ELSE 'Unknown'
+            END AS StateHoliday,
+
+	        SchoolHoliday
+
+        FROM Bronze.Train
+        WHERE Sales >0 OR IsOpen = 0
+        
+        SELECT @RowsLoaded = COUNT(*)
+        FROM Silver.Fact_Sales;
+        PRINT 'ROWS LOADED INTO Silver.Fact_Sales: '
+               + CAST(@RowsLoaded AS NVARCHAR(20));
+
+        SET @End_time = SYSDATETIME();
+        PRINT 'LOADING DURATION: '
+               + CAST (DATEDIFF(SECOND, @Start_time, @End_time) AS NVARCHAR)
+               + ' seconds';
+
+    END TRY
+    BEGIN CATCH
+        PRINT ' ================================================';
+        PRINT 'ERROR OCCURED DURING LOADING';
+        PRINT 'ERROR MESSAGE: ' + ERROR_MESSAGE() ;
+        PRINT 'ERROR NUMBER: ' + CAST(ERROR_NUMBER() AS NVARCHAR)
+        PRINT 'ERROR LINE: ' + CAST(ERROR_LINE() AS NVARCHAR);
+        PRINT ' ================================================';
+
+    END CATCH
+END
