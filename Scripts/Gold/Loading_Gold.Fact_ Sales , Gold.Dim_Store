@@ -1,0 +1,206 @@
+/*
+===============================================================================
+ETL Script: Load Gold Layer Tables
+===============================================================================
+Script Purpose:
+    This script loads data into the Gold layer tables.
+
+    The Gold layer receives data from Silver tables because all required data
+    cleaning, validation, filtering, and standardization processes have already
+    been performed in the Silver layer.
+
+    This script performs:
+
+    1. Gold.Load_Dim_Store:
+       - Loads standardized store information from Silver.Dim_Store.
+
+    2. Gold.Load_Fact_Sales:
+       - Loads validated sales transactions from Silver.Fact_Sales.
+
+    Both procedures use Full Load strategy (TRUNCATE + INSERT).
+
+    The load process includes:
+       - Execution time tracking.
+       - Number of loaded rows.
+       - Error handling using TRY...CATCH.
+
+    The current Full Load approach can be extended in the future to support
+    incremental loading strategies.
+
+===============================================================================
+*/
+
+
+-- =====================================================
+-- Load Gold.Dim_Store
+-- =====================================================
+
+CREATE OR ALTER PROCEDURE Gold.Load_Dim_Store AS
+
+BEGIN
+
+    BEGIN TRY
+
+        DECLARE 
+            @RowsLoaded INT,
+            @Start_time DATETIME2,
+            @End_time DATETIME2;
+
+
+        SET @Start_time = SYSDATETIME();
+
+
+        PRINT 'TRUNCATING TABLE : Gold.Dim_Store';
+
+        TRUNCATE TABLE Gold.Dim_Store;
+
+
+        PRINT 'INSERTING DATA INTO TABLE : Gold.Dim_Store';
+
+
+        INSERT INTO Gold.Dim_Store
+        (
+            Store,
+            StoreType,
+            Assortment,
+            CompetitionDistance,
+            CompetitionOpenSinceMonth,
+            CompetitionOpenSinceYear,
+            Promo2,
+            Promo2SinceWeek,
+            Promo2SinceYear,
+            PromoInterval
+        )
+
+        SELECT
+            Store,
+            StoreType,
+            Assortment,
+            CompetitionDistance,
+            CompetitionOpenSinceMonth,
+            CompetitionOpenSinceYear,
+            Promo2,
+            Promo2SinceWeek,
+            Promo2SinceYear,
+            PromoInterval
+
+        FROM Silver.Dim_Store;
+
+
+
+        SELECT @RowsLoaded = COUNT(*)
+        FROM Gold.Dim_Store;
+
+
+        SET @End_time = SYSDATETIME();
+
+
+        PRINT 'ROWS LOADED INTO Gold.Dim_Store: '
+              + CAST(@RowsLoaded AS NVARCHAR(20));
+
+
+        PRINT 'LOADING DURATION: '
+              + CAST(DATEDIFF(SECOND,@Start_time,@End_time) AS NVARCHAR)
+              + ' seconds';
+
+
+    END TRY
+
+
+    BEGIN CATCH
+
+        PRINT 'ERROR OCCURRED DURING LOADING';
+        PRINT ERROR_MESSAGE();
+
+    END CATCH
+
+END;
+GO
+
+
+
+-- =====================================================
+-- Load Gold.Fact_Sales
+-- =====================================================
+
+CREATE OR ALTER PROCEDURE Gold.Load_Fact_Sales AS
+
+BEGIN
+
+    BEGIN TRY
+
+        DECLARE 
+            @RowsLoaded INT,
+            @Start_time DATETIME2,
+            @End_time DATETIME2;
+
+
+        SET @Start_time = SYSDATETIME();
+
+
+        PRINT 'TRUNCATING TABLE : Gold.Fact_Sales';
+
+        TRUNCATE TABLE Gold.Fact_Sales;
+
+
+        PRINT 'INSERTING DATA INTO TABLE : Gold.Fact_Sales';
+
+
+        INSERT INTO Gold.Fact_Sales
+        (
+            Store,
+            DayOfWeekNum,
+            SalesDate,
+            Sales,
+            Customers,
+            IsOpen,
+            Promo,
+            StateHoliday,
+            SchoolHoliday
+        )
+
+
+        SELECT
+
+            Store,
+            DayOfWeekNum,
+            SalesDate,
+            Sales,
+            Customers,
+            IsOpen,
+            Promo,
+            StateHoliday,
+            SchoolHoliday
+
+        FROM Silver.Fact_Sales;
+
+
+
+        SELECT @RowsLoaded = COUNT(*)
+        FROM Gold.Fact_Sales;
+
+
+        SET @End_time = SYSDATETIME();
+
+
+        PRINT 'ROWS LOADED INTO Gold.Fact_Sales: '
+              + CAST(@RowsLoaded AS NVARCHAR(20));
+
+
+        PRINT 'LOADING DURATION: '
+              + CAST(DATEDIFF(SECOND,@Start_time,@End_time) AS NVARCHAR)
+              + ' seconds';
+
+
+    END TRY
+
+
+    BEGIN CATCH
+
+        PRINT 'ERROR OCCURRED DURING LOADING';
+        PRINT ERROR_MESSAGE();
+
+    END CATCH
+
+END;
+GO
