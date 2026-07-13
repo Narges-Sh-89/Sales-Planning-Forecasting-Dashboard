@@ -1,0 +1,104 @@
+
+CREATE OR ALTER PROCEDURE Gold.Load_Dim_Date AS 
+
+BEGIN
+    BEGIN TRY
+
+
+        DECLARE @StartDay AS DATE , @EndDay AS DATE, @RowsLoaded INT, @Start_time DATETIME2, @End_time DATETIME2;
+
+        SET @Start_time = SYSDATETIME();
+
+        -- -------------------------------------------
+        -- TRUNCATING Gold.Dim_Date TABLE
+        -- -------------------------------------------
+        PRINT 'TRUNCATING TABLE : Gold.Dim_Date' ;
+        TRUNCATE TABLE Gold.Dim_Date ;
+
+
+        SELECT 
+             @StartDay = MIN(SalesDate),
+             @EndDay = MAX(SalesDate)
+         FROM Silver.Fact_Sales;
+
+     
+        -- -------------------------------------------
+        -- LOADING Gold.Dim_Date TABLE
+        -- -------------------------------------------
+         PRINT 'INSERTING DATA INTO TABLE : Gold.Dim_Date';
+
+         IF @StartDay IS NULL OR @EndDay IS NULL
+         BEGIN
+            THROW 50001, 'No data found in Silver.Fact_Sales.', 1;
+         END;
+
+         ;WITH DaysRange AS (
+                SELECT @StartDay AS SalesDate
+
+                UNION ALL
+
+                SELECT 
+                    DATEADD(DAY, 1, SalesDate)
+                FROM DaysRange
+                WHERE  SalesDate < @EndDay )
+
+
+         INSERT INTO Gold.Dim_Date (
+            SalesDate,
+            Year,
+            Quarter,
+            MonthNum,
+            MonthName,
+            WeekNum,
+            Day,
+            DayOfWeek,
+            DayName,
+            IsWeekend ) 
+
+         SELECT 
+            SalesDate, 
+            YEAR(SalesDate) , 
+            DATEPART(QUARTER, SalesDate) , 
+            MONTH(SalesDate) ,
+            DATENAME(MONTH, SalesDate), 
+            DATEPART(ISO_WEEK, SalesDate),
+            DAY(SalesDate) ,
+            ((DATEPART(WEEKDAY, SalesDate) + @@DATEFIRST - 2) % 7) + 1 ,
+            DATENAME(WEEKDAY, SalesDate),
+            CASE 
+               WHEN ((DATEPART(WEEKDAY, SalesDate) + @@DATEFIRST - 2) % 7) + 1 IN (6,7) THEN 1
+               ELSE 0
+            END
+
+
+         FROM DaysRange
+         OPTION (MAXRECURSION 0);
+
+        SELECT @RowsLoaded = COUNT(*)
+        FROM Gold.Dim_Date;
+
+        SET @End_time = SYSDATETIME();
+        PRINT 'ROWS LOADED INTO Gold.Dim_Date: '
+              + CAST(@RowsLoaded AS NVARCHAR(20));
+
+
+        PRINT 'LOADING DURATION: '
+              + CAST(DATEDIFF(SECOND,@Start_time,@End_time) AS NVARCHAR)
+              + ' seconds';
+
+    END TRY
+
+    BEGIN CATCH
+        PRINT '================================================';
+        PRINT 'ERROR OCCURRED DURING LOADING';
+        PRINT 'ERROR MESSAGE: ' + ERROR_MESSAGE();
+        PRINT 'ERROR NUMBER: ' + CAST(ERROR_NUMBER() AS NVARCHAR);
+        PRINT 'ERROR LINE: ' + CAST(ERROR_LINE() AS NVARCHAR);
+        PRINT '================================================';
+
+
+
+
+    END CATCH
+    
+END
