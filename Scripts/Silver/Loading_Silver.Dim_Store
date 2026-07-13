@@ -1,0 +1,106 @@
+
+/*
+===============================================================================
+Stored Procedure: Silver.Load_Dim_Store
+===============================================================================
+Purpose:
+    This stored procedure loads the Dim_Store table in the Silver layer.
+
+    The process extracts data from the Bronze layer, applies data cleansing
+    and standardization rules, and loads the transformed data into
+    Silver.Dim_Store.
+
+Transformations Applied:
+    - Standardizes StoreType values into business-friendly categories.
+    - Standardizes Assortment values into descriptive labels.
+    - Handles empty PromoInterval values by converting them to NULL.
+    - Preserves valid NULL values from the source system where applicable.
+
+Loading Process:
+    - The existing Silver.Dim_Store table is truncated before loading new data.
+    - Transformed records are inserted from Bronze.Store.
+    - The procedure tracks the number of loaded rows and execution duration.
+
+Error Handling:
+    - TRY/CATCH logic is implemented to capture loading errors and provide
+      detailed error information including message, number, and line.
+
+===============================================================================
+*/
+
+
+CREATE OR ALTER PROCEDURE Silver.Load_Dim_Store AS
+BEGIN
+     BEGIN TRY
+         DECLARE @RowsLoaded INT, @Start_time DATETIME2, @End_time DATETIME2
+
+         SET @start_time = SYSDATETIME();
+
+         PRINT 'TRUNCATING TABLE : Silver.Dim_Store';
+         TRUNCATE TABLE Silver.Dim_Store;
+
+         PRINT 'INSERTING DATA INTO TABLE: Silver.Dim_Store';
+         INSERT INTO Silver.Dim_Store (
+            Store,
+            StoreType,
+            Assortment, 
+            CompetitionDistance,
+            CompetitionOpenSinceMonth, 
+            CompetitionOpenSinceYear, 
+            Promo2,
+            Promo2SinceWeek,
+            Promo2SinceYear, 
+            PromoInterval
+         ) 
+
+        SELECT 
+	
+            Store,
+
+            CASE LOWER(TRIM(StoreType))
+                WHEN 'a' THEN 'Type A'
+                WHEN 'b' THEN 'Type B'
+                WHEN 'c' THEN 'Type C'
+                WHEN 'd' THEN 'Type D'
+                ELSE 'Unknown'
+            END AS StoreType,
+
+            CASE  LOWER(TRIM(Assortment))
+                WHEN 'a' THEN 'Basic'
+                WHEN 'b' THEN 'Extra'
+                WHEN 'c' THEN 'Extended'
+                ELSE 'Unknown'
+            END  AS Assortment, 
+
+            CompetitionDistance,
+            CompetitionOpenSinceMonth,
+            CompetitionOpenSinceYear,
+            Promo2,
+            Promo2SinceWeek,
+            Promo2SinceYear,
+            NULLIF(TRIM(PromoInterval),'') AS PromoInterval
+
+        FROM Bronze.Store
+
+        SELECT @RowsLoaded = COUNT(*)
+        FROM Silver.Dim_Store
+        PRINT 'ROWS LOADED INTO Silver.Dim_Store: '
+               + CAST(@RowsLoaded AS NVARCHAR(20));
+
+        SET @End_time = SYSDATETIME() ;                
+        PRINT 'LOADING DURATION: '
+               + CAST (DATEDIFF(SECOND, @Start_time, @End_time) AS NVARCHAR)
+               + ' seconds';
+          
+
+    END TRY
+    BEGIN CATCH
+        PRINT ' ================================================';
+        PRINT 'ERROR OCCURED DURING LOADING';
+        PRINT 'ERROR MESSAGE: ' + ERROR_MESSAGE() ;
+        PRINT 'ERROR NUMBER: ' + CAST(ERROR_NUMBER() AS NVARCHAR)
+        PRINT 'ERROR LINE: ' + CAST(ERROR_LINE() AS NVARCHAR);
+        PRINT ' ================================================';
+
+    END CATCH
+END
