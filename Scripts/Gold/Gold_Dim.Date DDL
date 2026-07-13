@@ -1,0 +1,52 @@
+/*
+===============================================================================
+DDL Script: Create Gold Layer Date Dimension
+===============================================================================
+Script Purpose:
+    This script creates the Date Dimension table in the 'gold' schema.
+
+    The Gold layer contains business-ready data structures designed for
+    analytical reporting and BI consumption.
+
+    The Dim_Date table provides a centralized calendar reference for time-based
+    analysis. It enables consistent reporting across different time levels such
+    as year, quarter, month, week, and day.
+
+    This dimension supports analytical scenarios including sales trend analysis,
+    period-over-period comparisons, seasonal analysis, and time-based KPI
+    calculations in reporting tools such as Power BI.
+
+    The table uses SalesDate as the primary key since each date represents a
+    unique calendar record. Additional calendar attributes are stored to avoid
+    repeated date calculations during analytical queries.
+
+    The dwh_createDate column is maintained as metadata to support future ETL
+    monitoring and potential incremental loading strategies.
+
+    This script drops the existing table if it already exists and recreates it
+    with the required schema and column definitions.
+
+    Run this script to initialize or refresh the Gold Date Dimension structure.
+===============================================================================
+*/
+
+
+IF OBJECT_ID('Gold.Dim_Date', 'U') IS NOT NULL
+	DROP TABLE Gold.Dim_Date; 
+GO
+
+CREATE TABLE Gold.Dim_Date (
+	SalesDate DATE NOT NULL, 
+	Year SMALLINT NOT NULL,
+	Quarter TINYINT NOT NULL,
+	MonthNum TINYINT NOT NULL,
+	MonthName VARCHAR(15) NOT NULL,
+	WeekNum TINYINT NOT NULL,
+	Day TINYINT NOT NULL,
+	DayofWeek TINYINT NOT NULL,
+	DayName VARCHAR(15) NOT NULL,
+	IsWeekend BIT NOT NULL,
+
+	dwh_createDate DATETIME2 DEFAULT SYSDATETIME(),
+	CONSTRAINT PK_Dim_Date PRIMARY KEY (SalesDate)
+	)
