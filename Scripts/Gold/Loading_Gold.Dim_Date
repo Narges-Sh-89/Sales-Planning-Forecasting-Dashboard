@@ -61,6 +61,8 @@ BEGIN
             DATEPART(QUARTER, SalesDate) , 
             MONTH(SalesDate) ,
             DATENAME(MONTH, SalesDate), 
+            CONCAT(YEAR(SalesDate),'-',LEFT(DATENAME(MONTH, SalesDate),3)),
+            YEAR(SalesDate) * 100 + MONTH(SalesDate),
             DATEPART(ISO_WEEK, SalesDate),
             DAY(SalesDate) ,
             ((DATEPART(WEEKDAY, SalesDate) + @@DATEFIRST - 2) % 7) + 1 ,
